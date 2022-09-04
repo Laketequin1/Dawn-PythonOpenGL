@@ -215,7 +215,7 @@ class RenderPass:
         
         projection_transform = pyrr.matrix44.create_perspective_projection(
             fovy = 45, aspect = 800/600,
-            near = 0.1, far = 50, dtype = np.float32
+            near = 0.1, far = 30, dtype = np.float32
         )
         gl.glUniformMatrix4fv(
             gl.glGetUniformLocation(self.shader, "projection"),
@@ -230,8 +230,8 @@ class RenderPass:
         gl.glUseProgram(self.shader)
         
         view_transform = pyrr.matrix44.create_look_at(
-            eye = np.array([-20, 2, 0], dtype = np.float32),
-            target = np.array([-19, 2, 0], dtype = np.float32),
+            eye = np.array([-10, 2, 0], dtype = np.float32),
+            target = np.array([-9, 2, 0], dtype = np.float32),
             up = np.array([0, 1, 0], dtype = np.float32),
             dtype = np.float32
         )
@@ -285,7 +285,7 @@ class Mesh:
         
         vertices = []
         
-        flags = {"v": [], "vt": [], "vn": []}
+        flags = {"v": []}
         
         with open(filepath, 'r') as f:
             lines = f.readlines()
@@ -305,19 +305,16 @@ class Mesh:
                     line = line.split(" ")
                     
                     face_vertices = []
-                    face_textures = []
-                    face_normals = []
+                    
                     for vertex in line:
                         l = vertex.split("/")
                         face_vertices.append(flags["v"][int(l[0]) - 1])
-                        face_textures.append(flags["vt"][int(l[1]) - 1])
-                        face_normals.append(flags["vn"][int(l[2]) - 1])
                     triangles_in_face = len(line) - 2
                     vertex_order = []
                     for x in range(triangles_in_face):
                         vertex_order.extend((0, x + 1, x + 2))
                     for x in vertex_order:
-                        vertices.extend((*face_vertices[x], *face_textures[x], *face_normals[x]))
+                        vertices.extend(face_vertices[x])
         
         print("Finished loading mesh!")
         
