@@ -8,7 +8,6 @@ import pyrr
 """
     Todo:
     
-    choose palette
     draw mountain
     draw floor grid
     
@@ -84,7 +83,7 @@ class App:
         if (delta >= 1000):
             framerate = max(1,int(1000.0 * self.num_frames/delta))
             pg.display.set_caption(f"Running at {framerate} fps.")
-            self.last_time = self.currentTime
+            self.last_time = self.current_time
             self.num_frames = -1
             self.frame_time = float(1000.0 / max(1,framerate))
             
@@ -150,6 +149,13 @@ class GraphicsEngine:
     
     def __init__(self):
         
+        self.palette = {
+            "peach": np.array([252/255, 226/255, 219/255], dtype = np.float32),
+            "pink": np.array([255/255, 143/255, 177/255], dtype = np.float32),
+            "darkPink": np.array([178/255, 112/255, 162/255], dtype = np.float32),
+            "purple": np.array([122/255, 68/255, 149/255], dtype = np.float32),
+        }
+        
         # Initilize pygame
         pg.init()
         pg.display.gl_set_attribute(pg.GL_CONTEXT_MAJOR_VERSION, 3)
@@ -159,7 +165,7 @@ class GraphicsEngine:
         pg.display.set_mode((640,480), pg.OPENGL|pg.DOUBLEBUF)
         
         # Initilize OpenGL
-        gl.glClearColor(0.0, 0.0, 0.0, 1)
+        gl.glClearColor(*self.palette["purple"], 1)
         gl.glEnable(gl.GL_DEPTH_TEST)
         gl.glEnable(gl.GL_BLEND)
         gl.glBlendFunc(gl.GL_SRC_ALPHA, gl.GL_ONE_MINUS_SRC_ALPHA)
@@ -193,7 +199,7 @@ class GraphicsEngine:
         
         pg.display.flip()
     
-    def quit(self):
+    def destroy(self):
         
         pg.quit()
 
@@ -223,9 +229,9 @@ class RenderPass:
         gl.glUseProgram(self.shader)
         
         view_transform = pyrr.matrix44.create_look_at(
-            eye = scene.player.position,
-            target = scene.player.position + scene.player.forwards,
-            up = scene.player.up,
+            eye = np.array([0, 0, 0], dtype = np.float32),
+            target = np.array([1, 0, 0], dtype = np.float32),
+            up = np.array([0, 1, 0], dtype = np.float32),
             dtype = np.float32
         )
         
