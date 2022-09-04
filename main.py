@@ -172,7 +172,8 @@ class GraphicsEngine:
         
         # Create renderpasses and resources
         shader = self.create_shader("shaders/vertex.txt", "shaders/fragment.txt")
-        self.renderPass = RenderPass(shader)
+        self.render_pass = RenderPass(shader)
+        self.mountain_mesh = Mesh("models/cube.obj")
         
     def create_shader(self, vertexFilepath, fragmentFilepath):
         
@@ -195,7 +196,7 @@ class GraphicsEngine:
         gl.glClear(gl.GL_COLOR_BUFFER_BIT | gl.GL_DEPTH_BUFFER_BIT)
         
         # Draw
-        self.renderPass.render(scene, self)
+        self.render_pass.render(scene, self)
         
         pg.display.flip()
     
@@ -229,13 +230,22 @@ class RenderPass:
         gl.glUseProgram(self.shader)
         
         view_transform = pyrr.matrix44.create_look_at(
-            eye = np.array([0, 0, 0], dtype = np.float32),
-            target = np.array([1, 0, 0], dtype = np.float32),
+            eye = np.array([-20, 2, 0], dtype = np.float32),
+            target = np.array([-19, 2, 0], dtype = np.float32),
             up = np.array([0, 1, 0], dtype = np.float32),
             dtype = np.float32
         )
         
         gl.glUniformMatrix4fv(self.viewMatrixLocation, 1, gl.GL_FALSE, view_transform)
+        
+        # Mountains
+        gl.glUniform3fv(self.colorLoc, 1, engine.palette["pink"])
+        
+        model_transform = pyrr.matrix44.create_identity(dtype = np.float32)
+        gl.glUniformMatrix4fv(self.modelMatrixLocation, 1, gl.GL_FALSE, model_transform)
+        
+        gl.glBindVertexArray(engine.mountain_mesh.vao)
+        gl.glDrawArrays(gl.GL_LINES, 0, engine.mountain_mesh.vertex_count)
     
     def destroy(self):
         
@@ -270,7 +280,9 @@ class Mesh:
     
     @staticmethod
     def load_mesh(filepath):
-    
+        
+        print("Loading mesh...")
+        
         vertices = []
         
         flags = {"v": [], "vt": [], "vn": []}
@@ -306,6 +318,8 @@ class Mesh:
                         vertex_order.extend((0, x + 1, x + 2))
                     for x in vertex_order:
                         vertices.extend((*face_vertices[x], *face_textures[x], *face_normals[x]))
+        
+        print("Finished loading mesh!")
         
         return vertices
     
