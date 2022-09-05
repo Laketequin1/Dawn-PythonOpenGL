@@ -173,7 +173,7 @@ class GraphicsEngine:
         # Create renderpasses and resources
         shader = self.create_shader("shaders/vertex.txt", "shaders/fragment.txt")
         self.render_pass = RenderPass(shader)
-        self.mountain_mesh = Mesh("models/mountains_small.obj")
+        self.mountain_mesh = Mesh("models/mountains.obj")
         
     def create_shader(self, vertexFilepath, fragmentFilepath):
         
@@ -215,7 +215,7 @@ class RenderPass:
         
         projection_transform = pyrr.matrix44.create_perspective_projection(
             fovy = 45, aspect = 800/600,
-            near = 0.1, far = 60, dtype = np.float32
+            near = 0.1, far = 50, dtype = np.float32
         )
         gl.glUniformMatrix4fv(
             gl.glGetUniformLocation(self.shader, "projection"),
@@ -230,8 +230,8 @@ class RenderPass:
         gl.glUseProgram(self.shader)
         
         view_transform = pyrr.matrix44.create_look_at(
-            eye = np.array([-25, 2, 0], dtype = np.float32),
-            target = np.array([-24, 2, 0], dtype = np.float32),
+            eye = np.array([0, 2, 0], dtype = np.float32),
+            target = np.array([0, 2, 1], dtype = np.float32),
             up = np.array([0, 1, 0], dtype = np.float32),
             dtype = np.float32
         )
@@ -243,10 +243,30 @@ class RenderPass:
         
         model_transform = pyrr.matrix44.create_identity(dtype = np.float32)
         
+        model_transform = pyrr.matrix44.multiply(
+            m1 = model_transform,
+            m2 = pyrr.matrix44.create_from_y_rotation(theta = np.radians(90), dtype = np.float32)
+        )
+        
+        model_transform = pyrr.matrix44.multiply(
+            m1 = model_transform,
+            m2 = pyrr.matrix44.create_from_x_rotation(theta = np.radians(-90), dtype = np.float32)
+        )
+        
+        model_transform = pyrr.matrix44.multiply(
+            m1 = model_transform,
+            m2 = pyrr.matrix44.create_from_z_rotation(theta = np.radians(90), dtype = np.float32)
+        )
+
+        model_transform = pyrr.matrix44.multiply(
+            m1 = model_transform,
+            m2 = pyrr.matrix44.create_from_translation(vec = np.array([0.8, 0, 20]), dtype = np.float32)
+        )
+        
         gl.glUniformMatrix4fv(self.model_matrix_location, 1, gl.GL_FALSE, model_transform)
         
         gl.glBindVertexArray(engine.mountain_mesh.vao)
-        gl.glDrawArrays(gl.GL_LINE_LOOP, 0, engine.mountain_mesh.vertex_count)
+        gl.glDrawArrays(gl.GL_LINES, 0, engine.mountain_mesh.vertex_count)
     
     def destroy(self):
         
