@@ -215,34 +215,35 @@ class RenderPass:
         
         projection_transform = pyrr.matrix44.create_perspective_projection(
             fovy = 45, aspect = 800/600,
-            near = 0.1, far = 80, dtype = np.float32
+            near = 0.1, far = 60, dtype = np.float32
         )
         gl.glUniformMatrix4fv(
             gl.glGetUniformLocation(self.shader, "projection"),
             1, gl.GL_FALSE, projection_transform
         )
-        self.modelMatrixLocation = gl.glGetUniformLocation(self.shader, "model")
-        self.viewMatrixLocation = gl.glGetUniformLocation(self.shader, "view")
-        self.colorLoc = gl.glGetUniformLocation(self.shader, "object_color")
+        self.model_matrix_location = gl.glGetUniformLocation(self.shader, "model")
+        self.view_matrix_location = gl.glGetUniformLocation(self.shader, "view")
+        self.color_loc = gl.glGetUniformLocation(self.shader, "object_color")
     
     def render(self, scene, engine):
         
         gl.glUseProgram(self.shader)
         
         view_transform = pyrr.matrix44.create_look_at(
-            eye = np.array([-50, 2, 0], dtype = np.float32),
-            target = np.array([-49, 2, 0], dtype = np.float32),
+            eye = np.array([-25, 2, 0], dtype = np.float32),
+            target = np.array([-24, 2, 0], dtype = np.float32),
             up = np.array([0, 1, 0], dtype = np.float32),
             dtype = np.float32
         )
         
-        gl.glUniformMatrix4fv(self.viewMatrixLocation, 1, gl.GL_FALSE, view_transform)
+        gl.glUniformMatrix4fv(self.view_matrix_location, 1, gl.GL_FALSE, view_transform)
         
         # Mountains
-        gl.glUniform3fv(self.colorLoc, 1, engine.palette["pink"])
+        gl.glUniform3fv(self.color_loc, 1, engine.palette["pink"])
         
         model_transform = pyrr.matrix44.create_identity(dtype = np.float32)
-        gl.glUniformMatrix4fv(self.modelMatrixLocation, 1, gl.GL_FALSE, model_transform)
+        
+        gl.glUniformMatrix4fv(self.model_matrix_location, 1, gl.GL_FALSE, model_transform)
         
         gl.glBindVertexArray(engine.mountain_mesh.vao)
         gl.glDrawArrays(gl.GL_LINE_LOOP, 0, engine.mountain_mesh.vertex_count)
