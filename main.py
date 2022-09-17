@@ -8,10 +8,6 @@ import pyrr
 """
     Todo:
     
-    draw mountain
-    draw floor grid
-    
-    draw player
     player controls: movement and shooting
     update player
     animate sentient component drop
@@ -74,6 +70,16 @@ class App:
     def handle_keys(self):
         
         keys = pg.key.get_pressed()
+        rate = self.frame_time / 16
+        
+        # Left, right, space
+        if keys[pg.K_LEFT]:
+            self.scene.move_player(rate * np.array([0.2, 0, 0], dtype=np.float32))
+        if keys[pg.K_RIGHT]:
+            self.scene.move_player(rate * np.array([-0.2, 0, 0], dtype=np.float32))
+            
+        if keys[pg.K_SPACE]:
+            self.scene.player.shoot()
     
     def calculate_framerate(self):
         
@@ -114,8 +120,14 @@ class SentientComponent:
         self.state = "stable"
         self.health = health
         self.can_shoot = True
-        self.reloading = False
         self.reload_time = 0
+
+    def shoot(self):
+        
+        if self.can_shoot:
+            print("Shoot!")
+            self.can_shoot = False
+            self.reload_time = 5
 
 
 class Scene:
@@ -127,8 +139,8 @@ class Scene:
         self.enemy_shoot_rate = 0.1
         
         self.player = SentientComponent(
-            position = [0, 0, 0],
-            eulers = [0, 90, 0],
+            position = [0, 1.2, 2],
+            eulers = [0, 0, 0],
             health = 36
         )
         
@@ -142,7 +154,9 @@ class Scene:
     
     def move_player(self, d_pos):
             
-            pass
+        self.player.position += d_pos
+        
+        self.player.position[0] = min(3, max(-3, self.player.position[0]))
 
 
 class GraphicsEngine:
@@ -174,6 +188,8 @@ class GraphicsEngine:
         shader = self.create_shader("shaders/vertex.txt", "shaders/fragment.txt")
         self.render_pass = RenderPass(shader)
         self.mountain_mesh = Mesh("models/mountains.obj")
+        self.grid_mesh = Grid(26)
+        self.ship_mesh = Mesh("models/ship.obj")
         
     def create_shader(self, vertexFilepath, fragmentFilepath):
         
@@ -215,7 +231,7 @@ class RenderPass:
         
         projection_transform = pyrr.matrix44.create_perspective_projection(
             fovy = 45, aspect = 800/600,
-            near = 0.1, far = 50, dtype = np.float32
+            near = 0.1, far = 100, dtype = np.float32
         )
         gl.glUniformMatrix4fv(
             gl.glGetUniformLocation(self.shader, "projection"),
@@ -230,8 +246,8 @@ class RenderPass:
         gl.glUseProgram(self.shader)
         
         view_transform = pyrr.matrix44.create_look_at(
-            eye = np.array([0, 2, 0], dtype = np.float32),
-            target = np.array([0, 2, 1], dtype = np.float32),
+            eye = np.array([0, 3, -5], dtype = np.float32),
+            target = np.array([0, 3, 1], dtype = np.float32),
             up = np.array([0, 1, 0], dtype = np.float32),
             dtype = np.float32
         )
@@ -267,6 +283,41 @@ class RenderPass:
         
         gl.glBindVertexArray(engine.mountain_mesh.vao)
         gl.glDrawArrays(gl.GL_LINES, 0, engine.mountain_mesh.vertex_count)
+        
+        # Ground
+        gl.glUniform3fv(self.color_loc, 1, engine.palette["pink"])
+        
+        model_transform = pyrr.matrix44.create_identity(dtype = np.float32)
+
+        model_transform = pyrr.matrix44.multiply(
+            m1 = model_transform,
+            m2 = pyrr.matrix44.create_from_translation(vec = np.array([-12, 0, -5]), dtype = np.float32)
+        )
+        
+        gl.glUniformMatrix4fv(self.model_matrix_location, 1, gl.GL_FALSE, model_transform)
+        
+        gl.glBindVertexArray(engine.grid_mesh.vao)
+        gl.glDrawArrays(gl.GL_LINES, 0, engine.grid_mesh.vertex_count)
+        
+        # Player
+        gl.glUniform3fv(self.color_loc, 1, engine.palette["peach"])
+        
+        model_transform = pyrr.matrix44.create_identity(dtype = np.float32)
+
+        model_transform = pyrr.matrix44.multiply(
+            m1 = model_transform,
+            m2 = pyrr.matrix44.create_from_scale(scale = np.array([0.6, 0.6, 0.6]), dtype = np.float32)
+        )
+        
+        model_transform = pyrr.matrix44.multiply(
+            m1 = model_transform,
+            m2 = pyrr.matrix44.create_from_translation(vec = scene.player.position, dtype = np.float32)
+        )
+        
+        gl.glUniformMatrix4fv(self.model_matrix_location, 1, gl.GL_FALSE, model_transform)
+        
+        gl.glBindVertexArray(engine.ship_mesh.vao)
+        gl.glDrawArrays(gl.GL_TRIANGLES, 0, engine.ship_mesh.vertex_count)
     
     def destroy(self):
         
@@ -341,6 +392,46 @@ class Mesh:
         
         return vertices
     
+    def destroy(self):
+        
+        # Remove allocated memory
+        gl.glDeleteVertexArrays(1, (self.vao, ))
+        gl.glDeleteBuffers(1, (self.vbo, ))
+        
+
+class Grid:
+    
+    def __init__(self, size):
+        
+        self.vertices = []
+        
+        for x in range(size):
+            self.vertices.extend((x, 0, 0))
+            self.vertices.extend((x, 0, size - 1))
+        
+        for z in range(size):
+            self.vertices.extend((0, 0, z))
+            self.vertices.extend((size - 1, 0, z))
+            
+        # // is integer division
+        self.vertex_count = len(self.vertices) // 3
+        self.vertices = np.array(self.vertices, dtype=np.float32)
+        
+        # Create a vertex array where attributes for buffer are going to be stored, bind to make active, needs done before buffer
+        self.vao = gl.glGenVertexArrays(1) 
+        gl.glBindVertexArray(self.vao)
+        
+        # Create a vertex buffer where the raw data is stored, bind to make active, then store the raw data at the location
+        self.vbo = gl.glGenBuffers(1)
+        gl.glBindBuffer(gl.GL_ARRAY_BUFFER, self.vbo)
+        gl.glBufferData(gl.GL_ARRAY_BUFFER, self.vertices.nbytes, self.vertices, gl.GL_STATIC_DRAW)
+        
+        # Enable attributes for buffer. Add attribute pointer for buffer so gpu knows what data is which. Vertex shader.
+        # Location 1 - Postion
+        gl.glEnableVertexAttribArray(0)
+        # Location, number of floats, format (float), gl.GL_FALSE, stride (total length of vertex, 4 bytes times number of floats), ctypes of starting position in bytes (void pointer expected)
+        gl.glVertexAttribPointer(0, 3, gl.GL_FLOAT, gl.GL_FALSE, 12, ctypes.c_void_p(0))
+
     def destroy(self):
         
         # Remove allocated memory
